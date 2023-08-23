@@ -10,6 +10,7 @@ LOGGER = set_up_logging()
 
 @dataclass
 class DatabaseColInfo:
+    """Represents the information needed to define a database column."""
     name: str
     data_type: str
     col_constraint: str
@@ -25,7 +26,6 @@ class SQLite3Database:
         Initialize the SQLite3Database with the path to the SQLite3 database file.
 
         :param db_file: Path to the SQLite3 database file.
-        :type db_file: str
         """
         self.db_file = db_file
         self.connection = None
@@ -57,9 +57,7 @@ class SQLite3Database:
         Create a new table in the SQLite3 database, with the provided column setup.
 
         :param table_name: Name of the table.
-        :type table_name: str
-        :param columns: The table column information: name, data type, and column constraint
-        :type columns: DatabaseColInfo
+        :param columns: The table column information: name, data type, and column constraint.
         """
         all_columns_text = []
         for column in columns:
@@ -75,15 +73,14 @@ class SQLite3Database:
         except sqlite3.Error as e:
             LOGGER.error("Error creating table:", e)
 
-    def insert(self, table_name, data):
+    def insert(self, table_name: str, data: dict[str]):
         """
         Insert data into a table in the SQLite3 database.
 
         :param table_name: Name of the table.
-        :type table_name: str
         :param data: A dictionary representing the data to be inserted.
-                     Example: {'column_name': 'value', ...}
-        :type data: dict
+                     Example: {'column_name_1': 'value_1',
+                               'column_name_2': 'value_2', ...}
         """
         try:
             placeholders = ', '.join('?' for _ in data.keys())
@@ -95,42 +92,80 @@ class SQLite3Database:
         except sqlite3.Error as e:
             LOGGER.error("Error inserting data:", e)
 
-    def delete_by_string_match(self, table_name, target_string):
-        """Exact match in any column? deletes the row."""
-        column_names = [column[1] for column in self.cursor.execute(f"PRAGMA table_info({table_name})")]
-        placeholders = ' OR '.join([f"{column} = ?" for column in column_names])
-        self.cursor.execute(f"DELETE FROM {table_name} WHERE {placeholders}", [target_string] * len(column_names))
-        rows_affected = self.cursor.rowcount
-        self.connection.commit()
+    def delete_by_string_match(self, table_name: str, target_string: str):
+        """
+        Delete a row from the specified table where any column matches the target string exactly.
 
-        if rows_affected > 0:
-            LOGGER.info(f'Success: Row containing "{target_string}" deleted')
-        else:
-            LOGGER.info(f'No deletion: Target string "{target_string}" not found')
+        :param table_name: Name of the table to delete from.
+        :param target_string: The exact string to match in any column for deletion.
+        """
+        try:
+            column_names = [column[1] for column in self.cursor.execute(f"PRAGMA table_info({table_name})")]
+            placeholders = ' OR '.join([f"{column} = ?" for column in column_names])
+            self.cursor.execute(f"DELETE FROM {table_name} WHERE {placeholders}", [target_string] * len(column_names))
+            rows_affected = self.cursor.rowcount
+            self.connection.commit()
 
-    def update_row(self, table_name, target_string, data_to_update):
+            if rows_affected > 0:
+                LOGGER.info(f'Success: Row containing "{target_string}" deleted')
+            else:
+                LOGGER.info(f'No deletion: Target string "{target_string}" not found')
+        except sqlite3.Error as e:
+            LOGGER.error("Error deleting data:", e)
+
+    def update_row(self, table_name: str, target_string: str, data_to_update: dict[str]):
+        """
+        Update a row in the specified table based on the primary key value.
+
+        This method updates a row in the database table based on the primary key value (target string).
+        It constructs an SQL UPDATE query to modify the data with the provided values.
+
+        :param table_name: Name of the table to update.
+        :param target_string: The primary key value identifying the row to update.
+        :param data_to_update: A dictionary containing the column names and their updated values.
+                               Example: {'column_name_1': 'value_1',
+                                         'column_name_2': 'value_2', ...}
+        """
         try:
             primary_key_column = self._get_primary_key_column(table_name)
             set_clause = ', '.join(f"{name} = ?" for name in data_to_update.keys())
             query = f"UPDATE {table_name} SET {set_clause} WHERE {primary_key_column} = ?"
 
-            # Construct parameter values for the UPDATE query
             param_values = list(data_to_update.values()) + [target_string]
 
             self.cursor.execute(query, param_values)
+            rows_affected = self.cursor.rowcount
             self.connection.commit()
-            LOGGER.info(f'Data in row containing "{target_string}" updated successfully')
+
+            if rows_affected > 0:
+                LOGGER.info(f'Success: Row containing "{target_string}" updated')
+            else:
+                LOGGER.info(f'No update: Target string "{target_string}" not found')
         except sqlite3.Error as e:
             LOGGER.error("Error updating data:", e)
 
-    def _get_primary_key_column(self, table_name):
+    def _get_primary_key_column(self, table_name: str) -> str:
+        """
+        Retrieve the name of the primary key column for the specified table.
+
+        :param table_name: Name of the table to retrieve the primary key column from.
+        :return: Name of the primary key column.
+        """
         result = self.cursor.execute(f"PRAGMA table_info({table_name})").fetchall()
         for column in result:
             if column[5]:  # Check if the column is a primary key
                 return column[1]
         raise ValueError(f"No primary key found for table '{table_name}'")
 
-    def get_column_values(self, table_name, column_name):
+    def get_column_values(self, table_name: str, column_name: str) -> list[str]:
+        """
+        Retrieve values from a specific column in the specified table.
+
+        :param table_name: Name of the table to retrieve values from.
+        :param column_name: Name of the column to retrieve values from.
+        :return: List of values from the specified column.
+                 Example: ['value_1', 'value_2', ...]
+        """
         try:
             query = f"SELECT {column_name} FROM {table_name}"
             result = self.cursor.execute(query).fetchall()
@@ -139,9 +174,21 @@ class SQLite3Database:
         except sqlite3.Error as e:
             LOGGER.error("Error getting column values:", e)
 
-    def get_row_containing_term(self, table_name, search_term):
-        """Findings are returned as a dictionary
-        Example: {'column_name': 'value', ...}"""
+    def get_row_containing_term(self, table_name: str, search_term: str) -> dict[str] or None:
+        """
+        Retrieve a row containing the specified term from the database table.
+
+        This method searches for a row in the specified table where any column contains
+        an exact match to the provided search term. If a matching row is found, its data
+        is returned as a dictionary where column names are keys and their values are
+        the corresponding data values.
+
+        :param table_name: Name of the table to search in.
+        :param search_term: The term to search for in any column.
+        :return: A dictionary representing the matching row, or None if not found.
+                 Example: {'column_name_1': 'value_1',
+                           'column_name_2': 'value_2', ...}
+        """
         try:
             column_names = [column[1] for column in self.cursor.execute(f"PRAGMA table_info({table_name})")]
             placeholders = ' OR '.join([f"{column} = ?" for column in column_names])
@@ -155,7 +202,12 @@ class SQLite3Database:
         except sqlite3.Error as e:
             LOGGER.error(f'Error getting row containing the term "{search_term}":', e)
 
-    def show_table_data(self, table_name):
+    def show_table_data(self, table_name: str):
+        """
+        Display data from the specified table in a formatted table format.
+
+        :param table_name: Name of the table to display data from.
+        """
         try:
             # Execute a query to retrieve all rows from the specified table
             self.cursor.execute(f"SELECT * FROM {table_name}")

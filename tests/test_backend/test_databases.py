@@ -2,8 +2,8 @@ import os
 import tempfile
 import unittest
 
-from databases import DatabaseColInfo
-from databases import SQLite3Database
+from backend.app.databases import DatabaseColInfo
+from backend.app.databases import SQLite3Database
 
 DB_FILE = os.path.join(tempfile.gettempdir(), 'test_db.db')  # sqlite3')
 TABLE_NAME = 'organisations'
@@ -95,6 +95,17 @@ class TestSQLite3DatabaseManipulation(unittest.TestCase):
         updated_organisations = self.db.get_column_values(TABLE_NAME, COL1)
         self.assertEqual(initial_organisations, updated_organisations)
 
+    def test_insert_partial(self):
+        new_entry_name = "New item"
+        initial_organisations = self.db.get_column_values(TABLE_NAME, COL1)
+        self.db.insert(TABLE_NAME, {COL1: new_entry_name})
+        updated_organisations = self.db.get_column_values(TABLE_NAME, COL1)
+        self.assertEqual(len(updated_organisations), len(initial_organisations) + 1)
+        added_organisation = set(updated_organisations) - set(initial_organisations)
+        self.assertEqual(new_entry_name, *added_organisation)
+        new_row = self.db.get_row_containing_term(TABLE_NAME, new_entry_name)
+        self.assertEqual(None, new_row[COL2])
+
     def test_delete_by_string_match(self):
         initial_organisations = self.db.get_column_values(TABLE_NAME, COL1)
         self.db.delete_by_string_match(TABLE_NAME, "BK")
@@ -128,6 +139,13 @@ class TestSQLite3DatabaseManipulation(unittest.TestCase):
         updated_url = self.db.get_row_containing_term(TABLE_NAME, org_to_update)
         self.assertNotEqual(initial_url, updated_url)
         self.assertEqual("www.kfc_rocks.com", updated_url[COL2])
+
+    def test_do_not_update_row_based_on_url(self):
+        url_to_update = "www.kfc.com"
+        initial_url = self.db.get_row_containing_term(TABLE_NAME, url_to_update)
+        self.db.update_row(TABLE_NAME, url_to_update, {COL1: "no_one_messes_with_kernel_sanders"})
+        updated_url = self.db.get_row_containing_term(TABLE_NAME, url_to_update)
+        self.assertEqual(initial_url, updated_url)
 
 
 if __name__ == '__main__':
