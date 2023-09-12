@@ -6,7 +6,7 @@ Website to help job seekers find companies that are eligible to support their vi
 Proj_name/  
 |  
 |-- backend/  
-|&nbsp|-- app/  
+|${'\xA0'}|-- app/  
 |   |   |-- __init__.py  
 |   |   |-- database.py  
 |   |   |-- scraping.py  
