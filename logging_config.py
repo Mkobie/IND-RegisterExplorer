@@ -19,6 +19,11 @@ def set_up_logging() -> logging.Logger:
 
     # https://towardsdatascience.com/python-logging-saving-logs-to-a-file-sending-logs-to-an-api-75ec5964943f
     logger = logging.getLogger('IND-RegisterExplorer')
+
+    # If handlers are already configured, return the existing logger
+    if logger.handlers:
+        return logger
+
     logger.setLevel(level=logging.DEBUG)  # set the default level
 
     basic_formatting = f"%(message)s"
