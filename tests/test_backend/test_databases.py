@@ -1,11 +1,11 @@
-import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from backend.app.databases import DatabaseColInfo
 from backend.app.databases import SQLite3Database
 
-DB_FILE = os.path.join(tempfile.gettempdir(), 'test_db.db')  # sqlite3')
+DB_FILE = Path(tempfile.gettempdir()) / 'test_db.db'
 TABLE_NAME = 'organisations'
 COL1 = 'organisation_name'
 COL2 = 'url'
@@ -31,7 +31,7 @@ class TestSQLite3DatabaseCreation(unittest.TestCase):
     def tearDown(self):
         if self.db.connection:
             self.db.disconnect()
-            os.remove(DB_FILE)
+            DB_FILE.unlink()
 
     def test_connect_disconnect(self):
         self.db.connect()
@@ -71,7 +71,7 @@ class TestSQLite3DatabaseManipulation(unittest.TestCase):
     def tearDown(self):
         if self.db.connection:
             self.db.disconnect()
-            os.remove(DB_FILE)
+            DB_FILE.unlink()
 
     def test_get_column_values(self):
         organisations = self.db.get_column_values(TABLE_NAME, COL1)

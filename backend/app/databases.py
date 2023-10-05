@@ -1,7 +1,7 @@
-import os
 import sqlite3
 import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 from logging_config import set_up_logging
 
@@ -247,7 +247,7 @@ class SQLite3Database:
 
 
 def main():
-    db_file = os.path.join(tempfile.gettempdir(), 'test_db.db')
+    db_file = Path(tempfile.gettempdir()) / 'IND-RegisterExplorer.db'
     table_name = 'organisations'
     col1 = 'organisation_name'
     col2 = 'url'
@@ -277,7 +277,7 @@ def main():
 
     if db.connection:
         db.disconnect()
-        os.remove(db_file)
+        db_file.unlink()
         LOGGER.info(f'Deleted {db_file}')
 
 
