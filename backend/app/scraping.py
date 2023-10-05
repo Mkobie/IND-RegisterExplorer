@@ -21,17 +21,12 @@ def scrape_ind_organisations(ind_sponsors_url: str = IND_SPONSORS_URL, ind_heade
     :return: A list of scraped organizations.
     """
 
-    organisations = []
-
     response = requests.get(ind_sponsors_url)
     soup = BeautifulSoup(response.content, 'html.parser')
-    table_headers = soup.find_all('th')
-    ignored_headers = {ind_header_1, ind_header_2}
 
-    for entry in table_headers:
-        organisation = entry.get_text().strip()
-        if organisation not in ignored_headers:
-            organisations.append(organisation)
+    organisation_elements = soup.select('th[scope=row]')
+    organisations = [element.get_text(strip=True) for element in organisation_elements
+                     if element.get_text(strip=True) not in [IND_HEADER_1, IND_HEADER_2]]
 
     return organisations
 
