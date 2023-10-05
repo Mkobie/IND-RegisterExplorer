@@ -4,6 +4,11 @@ import requests
 import yaml
 from bs4 import BeautifulSoup
 
+from logging_config import set_up_logging
+
+LOGGER = set_up_logging()
+
+
 HTTP_OK = 200
 IND_SPONSORS_URL = 'https://ind.nl/en/public-register-recognised-sponsors/public-register-regular-labour-and-highly-skilled-migrants'
 IND_HEADER_1 = 'Company/organisation'
@@ -48,18 +53,20 @@ def scrape_organization_linkedin_from_google(organization: str):
     params = load_secret_keys(secret_file_path)
     params["q"] = organization
 
-    response = requests.get(base_url, params=params)
+    try:
+        response = requests.get(base_url, params=params)
 
-    if response.status_code == HTTP_OK:
+        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
+
         data = response.json()
         if "items" in data:
             first_result = data["items"][0]
             return first_result["link"]
         else:
-            return "No results found."
-    else:
-        print(response.text)  # todo: log
-        raise RuntimeError("Error: Unable to retrieve search results.")
+            LOGGER.info(f'No results found when searching for "{organization}".')
+            return None
+    except requests.exceptions.RequestException as e:
+        LOGGER.error(f"Error parsing HTML: {str(e)}")
 
 
 def load_secret_keys(file_path):
